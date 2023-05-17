@@ -20,6 +20,7 @@ import {
 } from '@ant-design/icons';
 
 import axiosClient from '../libraries/axiosClient';
+import AddProductForm from './addProductForm';
 
 const MESSAGE_TYPE = {
   SUCCESS: 'success',
@@ -72,12 +73,13 @@ export default function ProductPage() {
   const onFinish = useCallback(
     async (values) => {
       try {
-        await axiosClient.post('/products', values);
+        const res = await axiosClient.post('/products', values);
 
         setRefresh((preState) => preState + 1);
         createForm.resetFields();
 
-        onShowMessage('Thêm sản phẩm thành công');
+        // onShowMessage('Thêm sản phẩm thành công');
+        onShowMessage(res.data.message);
 
         // setRefresh(refresh + 1);
 
@@ -90,56 +92,57 @@ export default function ProductPage() {
         // ]))
       } catch (error) {
         if (error?.response?.data?.errors) {
-          error.response.data.errors.map((e) =>
-            onShowToast({
-              message: 'Lỗi',
-              description: e,
-            }),
-          );
+          error.response.data.errors.map((e) => onShowMessage(e, MESSAGE_TYPE.ERROR));
         }
       }
     },
-    [createForm, onShowMessage, onShowToast],
+    [createForm, onShowMessage],
   );
 
-  // const onSelectProduct = useCallback(
-  //   (data) => () => {
-  //     setEditModalVisible(true);
-  //     setSelectedProduct(data);
-  //     updateForm.setFieldsValue(data);
-  //     console.log(data);
-  //   },
-  //   [updateForm],
-  // );
+  const onSelectProduct = useCallback(
+    (data) => () => {
+      setEditModalVisible(true);
 
-  // const onDeleteProduct = useCallback((id) => async () => {
-  //   try {
-  //     const response = await axiosClient.delete(`products/${id}`);
-  //     console.log(response);
-  //     setRefresh((prevState) => prevState + 1);
-  //   } catch (error) {
-  //     console.log('««««« error »»»»»', error);
-  //   }
-  // }, []);
+      setSelectedProduct(data);
 
-  const onEditFinish = useCallback(
-    (values) => {
+      updateForm.setFieldsValue(data);
+    },
+    [updateForm],
+  );
+
+  const onDeleteProduct = useCallback((productId) => async () => {
+    try {
+      const response = await axiosClient.delete(`products/${productId}`);
+
+      onShowMessage(response.data.message);
+
+      setRefresh((prevState) => prevState + 1);
+    } catch (error) {
+      console.log('««««« error »»»»»', error);
+    }
+  }, [onShowMessage]);
+
+  const onEditFinish = useCallback(async (values) => {
       try {
-        const response = axiosClient.patch(
+        const response = await axiosClient.patch(
           `products/${selectedProduct.id}`,
           values,
         );
 
-        if (response.status === 200) {
+        if (response.status === 201) {
           updateForm.resetFields();
+
           setEditModalVisible(false);
+
+          onShowMessage(response.data.message);
+
           setRefresh((prevState) => prevState + 1);
         }
       } catch (error) {
         console.log('««««« error »»»»»', error);
       }
     },
-    [selectedProduct?.id, updateForm],
+    [onShowMessage, selectedProduct?.id, updateForm],
   );
 
   const columns = [
@@ -175,7 +178,6 @@ export default function ProductPage() {
     },
     {
       title: 'Giá bán',
-      dataIndex: 'price',
       key: 'price',
       render: function (text, record, index) {
         const { discount, price } = record;
@@ -184,31 +186,36 @@ export default function ProductPage() {
         return <strong>{numeral(realPrice).format('0,0$')}</strong>;
       },
     },
-    // {
-    //   title: '',
-    //   key: 'actions',
-    //   width: '1%',
-    //   render: (text, record, index) => {
-    //     return (
-    //       <Space>
-    //         <Button
-    //           type="dashed"
-    //           icon={<EditOutlined />}
-    //           onClick={onSelectProduct(record)}
-    //         />
+    {
+      title: 'Mô tả',
+      key: 'description',
+      dataIndex: 'description',
+    },
+    {
+      title: '',
+      key: 'actions',
+      width: '1%',
+      render: (text, record, index) => {
+        return (
+          <Space>
+            <Button
+              type="dashed"
+              icon={<EditOutlined />}
+              onClick={onSelectProduct(record)}
+            />
 
-    //         <Popconfirm
-    //           title="Are you sure to delete?"
-    //           okText="Đồng ý"
-    //           cancelText="Đóng"
-    //           onConfirm={onDeleteProduct(record.id)}
-    //         >
-    //           <Button danger type="dashed" icon={<DeleteOutlined />} />
-    //         </Popconfirm>
-    //       </Space>
-    //     );
-    //   },
-    // },
+            <Popconfirm
+              title="Are you sure to delete?"
+              okText="Đồng ý"
+              cancelText="Đóng"
+              onConfirm={onDeleteProduct(record.id)}
+            >
+              <Button danger type="dashed" icon={<DeleteOutlined />} />
+            </Popconfirm>
+          </Space>
+        );
+      },
+    },
   ];
 
   const getSuppliers = useCallback(async () => {
@@ -262,111 +269,11 @@ export default function ProductPage() {
   return (
     <div className="App">
       {contextHolder}
-      <Form
-        form={createForm}
-        name="add-product-form"
-        labelCol={{ span: 8 }}
-        wrapperCol={{ span: 16 }}
+
+      <AddProductForm
+        createForm={createForm}
         onFinish={onFinish}
-      >
-        <Form.Item
-          label="Danh mục sản phẩm"
-          name="categoryId"
-          rules={[
-            {
-              required: true,
-              message: 'Please input product categpry!',
-            },
-          ]}
-        >
-          <Select
-            options={
-              categories &&
-              categories.map((c) => {
-                return {
-                  value: c.id,
-                  label: c.name,
-                };
-              })
-            }
-          />
-        </Form.Item>
-
-        <Form.Item
-          label="Nhà cung cấp"
-          name="supplierId"
-          rules={[
-            {
-              required: true,
-              message: 'Please input product supplier!',
-            },
-          ]}
-        >
-          <Select
-            options={
-              suppliers &&
-              suppliers.map((c) => {
-                return {
-                  value: c.id,
-                  label: c.name,
-                };
-              })
-            }
-          />
-        </Form.Item>
-
-        <Form.Item
-          label="Tên"
-          name="name"
-          rules={[
-            { required: true, message: 'Vui lòng nhập tên sản phẩm' },
-            { max: 50, message: 'Tối đa 50 ký tự' },
-          ]}
-        >
-          <Input />
-        </Form.Item>
-
-        <Form.Item
-          label="Giá gốc"
-          name="price"
-          rules={[
-            {
-              type: 'number',
-              min: 0,
-              message: 'Vui lòng nhập giá gốc từ 0 đến 100',
-            },
-            { required: true, message: 'Vui lòng nhập giá gốc' },
-          ]}
-        >
-          <InputNumber style={{ width: '100%'}}/>
-        </Form.Item>
-
-        <Form.Item label="Mô tả" name="description">
-          <Input />
-        </Form.Item>
-
-        <Form.Item
-          label="Giảm giá"
-          name="discount"
-          rules={[
-            {
-              type: 'number',
-              min: 0,
-              max: 100,
-              message: 'Vui lòng nhập giảm giá từ 0 đến 100',
-            },
-            { required: true, message: 'Vui lòng nhập giảm giá' },
-          ]}
-        >
-          <InputNumber style={{ width: '100%'}} />
-        </Form.Item>
-
-        <Form.Item wrapperCol={{ offset: 8, span: 16 }}>
-          <Button type="primary" htmlType="submit">
-            Submit
-          </Button>
-        </Form.Item>
-      </Form>
+      />
 
       <Table rowKey="id" dataSource={products} columns={columns} />
 
@@ -378,7 +285,7 @@ export default function ProductPage() {
           setEditModalVisible(false);
         }}
         cancelText="Đóng"
-        okText="Lưu thông tin"
+        okText="Lưu"
         onOk={() => {
           updateForm.submit();
         }}
@@ -415,9 +322,9 @@ export default function ProductPage() {
                 })
               }
             />
-          </Form.Item> */}
+          </Form.Item>
 
-          {/* <Form.Item
+          <Form.Item
             label="Nhà cung cấp"
             name="supplierId"
             rules={[
@@ -440,7 +347,7 @@ export default function ProductPage() {
             />
           </Form.Item> */}
 
-          {/* <Form.Item
+          <Form.Item
             label="Tên sản phẩm"
             name="name"
             rules={[
@@ -451,9 +358,9 @@ export default function ProductPage() {
             ]}
           >
             <Input />
-          </Form.Item> */}
+          </Form.Item>
 
-          {/* <Form.Item
+          <Form.Item
             label="Giá bán"
             name="price"
             rules={[
@@ -464,9 +371,9 @@ export default function ProductPage() {
             ]}
           >
             <InputNumber />
-          </Form.Item> */}
+          </Form.Item>
 
-          {/* <Form.Item
+          <Form.Item
             label="Giảm (%)"
             name="discount"
             rules={[
@@ -476,21 +383,15 @@ export default function ProductPage() {
               },
             ]}
           >
-            <InputNumber />
-          </Form.Item> */}
+            <InputNumber min={0} max={100} />
+          </Form.Item>
 
-          {/* <Form.Item
-            label="Tồn"
-            name="stock"
-            rules={[
-              {
-                required: true,
-                message: 'Please input product stock!',
-              },
-            ]}
+          <Form.Item
+            label="Mô tả"
+            name="description"
           >
-            <InputNumber min={0} />
-          </Form.Item> */}
+            <Input />
+          </Form.Item>
         </Form>
       </Modal>
     </div>
