@@ -290,7 +290,7 @@ export default function Products() {
   }, [getProductData, refresh]);
 
   return (
-    <div className="App">
+    <>
       {contextHolder}
 
       <ProductForm
@@ -329,6 +329,6 @@ export default function Products() {
           isHiddenSubmit
         />
       </Modal>
-    </div>
+    </>
   );
 }

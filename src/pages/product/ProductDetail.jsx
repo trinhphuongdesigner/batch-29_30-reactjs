@@ -83,7 +83,7 @@ export default function Products() {
     getCategories();
   }, [getCategories, getSuppliers]);
 
-  const isEditProduct = useMemo(() => !params.id === 'add', [params.id]);
+  const isEditProduct = useMemo(() => !(params.id === 'add'), [params.id]);
 
   useEffect(() => {
     if (isEditProduct) {
@@ -92,7 +92,7 @@ export default function Products() {
   }, [getProductData, isEditProduct, params.id]);
 
   return (
-    <div className="">
+    <>
       {contextHolder}
 
       <ProductForm
@@ -124,6 +124,6 @@ export default function Products() {
         </Button>
       )
     }
-    </div>
+    </>
   );
 }
